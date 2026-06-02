@@ -58,7 +58,7 @@ https://www.tampermonkey.net/
 
 2. Install the script
 Click here to install directly:
-https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/Ultra-Lite-Phantom.user.js
+[https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/Ultra-Lite-Phantom.user.js](https://raw.githubusercontent.com/Michael-Stutesman/Ultra-Lite-Phantom-Specter/main/Ultra-Lite-Phantom.user.js)
 
 Or:
 
