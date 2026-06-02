@@ -95,11 +95,3 @@ MIT License (recommended)
 
 🙌 Disclaimer
 This script is intended for privacy improvement and reducing unwanted content. Use responsibly and be aware that blocking certain resources may affect site functionality.
-
-🧠 Future Ideas
-
-Per-site toggle system
-Whitelist manager
-UI overlay for live stats
-Extension version (optional future upgrade)
-
