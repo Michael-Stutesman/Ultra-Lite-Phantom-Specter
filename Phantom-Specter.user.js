@@ -1,134 +1,170 @@
 // ==UserScript==
-// @name         Ultra-Lite Phantom+Specter v5.0 (Stable Universal)
+// @name         Ultra-Lite Phantom+Specter v5.2 (Hybrid Engine)
 // @namespace    universal.ultralite.safe.perf
-// @version      5.0
-// @description  Cross-browser stable ad/script/iframe blocking with minimal risk footprint
+// @version      5.2
+// @description  Hybrid ad/script/iframe blocker: lightweight core + selective deep intelligence
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
 
-(function () {
+(() => {
     'use strict';
 
-    // ---------------- Blocklist ----------------
+    /* ---------------- SINGLETON GUARD ---------------- */
+    const KEY = "__PHANTOM_SPECTER_V52__";
+    if (window[KEY]) return;
+    Object.defineProperty(window, KEY, {
+        value: true,
+        configurable: false
+    });
+
+    /* ---------------- BLOCK RULES ---------------- */
     const blocked =
-/amazon-adsystem\.com|doubleclick\.net|googlesyndication\.com|google-analytics\.com|googletagmanager\.com|scorecardresearch\.com|taboola\.com|outbrain\.com|adsafeprotected\.com|adservice\.google\.com|adnxs\.com|rubiconproject\.com|openx\.net|pubmatic\.com|criteo\.net|media\.net|moatads\.com|adsrvr\.org|teads\.tv|sharethrough\.com|zemanta\.com|ligatus\.com|revcontent\.com|mgid\.com|segment\.io|mixpanel\.com|amplitude\.com|hotjar\.com|fullstory\.com|connect\.facebook\.net|facebook\.com\/tr/;
-    const isBlocked = (url) => !!url && blocked.test(url);
+        /amazon-adsystem\.com|doubleclick\.net|googlesyndication\.com|google-analytics\.com|googletagmanager\.com|scorecardresearch\.com|taboola\.com|outbrain\.com|adsafeprotected\.com|adservice\.google\.com|adnxs\.com|rubiconproject\.com|openx\.net|pubmatic\.com|criteo\.net|media\.net|moatads\.com|adsrvr\.org|teads\.tv|sharethrough\.com|zemanta\.com|ligatus\.com|revcontent\.com|mgid\.com|segment\.io|mixpanel\.com|amplitude\.com|hotjar\.com|fullstory\.com|connect\.facebook\.net|facebook\.com\/tr/;
 
-    const safeTags = ["IMG", "VIDEO", "SECTION", "ARTICLE", "ASIDE"];
+    const isBlocked = (u) => !!u && blocked.test(u);
 
-    const adSelectors =
-        'iframe[src*="ads"], iframe[src*="doubleclick"], iframe[src*="advert"], div[id^="ad_"], div[class^="ad_"], div[id*="sponsor"], div[class*="sponsor"], [aria-label="Sponsored"]';
+    /* ---------------- CSS LAYER ---------------- */
+    const style = document.createElement('style');
+    style.textContent = `
+        iframe[src*="ads"],
+        iframe[src*="doubleclick"],
+        iframe[src*="advert"],
+        [id^="ad_"],
+        [class^="ad_"],
+        [id*="sponsor"],
+        [class*="sponsor"],
+        [aria-label="Sponsored"] {
+            display:none !important;
+        }
+    `;
+    document.documentElement.appendChild(style);
 
-    // ---------------- Safe src hook (Firefox-safe) ----------------
-    function hookSrc(proto) {
-        const desc = Object.getOwnPropertyDescriptor(proto, "src");
-        if (!desc || !desc.set) return;
-
-        Object.defineProperty(proto, "src", {
-            set(v) {
-                if (!isBlocked(v)) desc.set.call(this, v);
-            },
-            get: desc.get,
-            configurable: true
-        });
-    }
-
-    hookSrc(HTMLImageElement.prototype);
-    hookSrc(HTMLIFrameElement.prototype);
-
-    // ---------------- Safe fetch override ----------------
+    /* ---------------- FETCH HOOK ---------------- */
     const nativeFetch = window.fetch;
-
     window.fetch = function (...args) {
-        const url = args?.[0]?.url || args?.[0];
+        const r = args[0];
+        const url = typeof r === "string" ? r : r?.url;
         if (isBlocked(url)) {
             return Promise.reject(new DOMException("Blocked", "AbortError"));
         }
         return nativeFetch.apply(this, args);
     };
 
-    // ---------------- XHR protection ----------------
-    const open = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+    /* ---------------- XHR HOOK ---------------- */
+    const XHR = XMLHttpRequest.prototype;
+
+    const open = XHR.open;
+    const send = XHR.send;
+
+    XHR.open = function (method, url, ...rest) {
         if (isBlocked(url)) {
-            this._blocked = true;
+            this._blocked = 1;
             return;
         }
         return open.call(this, method, url, ...rest);
     };
 
-    const send = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function (...args) {
+    XHR.send = function (...args) {
         if (this._blocked) return;
         return send.apply(this, args);
     };
 
-    // ---------------- Lazy loader ----------------
-    const io = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-            const el = e.target;
-            if (!e.isIntersecting) continue;
+    /* ---------------- SRC HOOK ---------------- */
+    const hookSrc = (proto) => {
+        const desc = Object.getOwnPropertyDescriptor(proto, "src");
+        if (!desc || !desc.set) return;
 
-            el.classList.remove("ul-lite-hidden");
-            if (el.tagName === "VIDEO") {
-                try { el.play(); } catch {}
+        const set = desc.set;
+        const get = desc.get;
+
+        Object.defineProperty(proto, "src", {
+            set(v) {
+                if (!isBlocked(v)) set.call(this, v);
+            },
+            get,
+            configurable: true
+        });
+    };
+
+    hookSrc(HTMLImageElement.prototype);
+    hookSrc(HTMLIFrameElement.prototype);
+
+    /* ---------------- INTELLIGENCE ENGINE ---------------- */
+    const SUSPICIOUS_IFRAME_HINTS = [
+        "ads", "doubleclick", "adservice", "banner", "sponsor"
+    ];
+
+    const isSuspicious = (src = "") => {
+        for (let i = 0; i < SUSPICIOUS_IFRAME_HINTS.length; i++) {
+            if (src.includes(SUSPICIOUS_IFRAME_HINTS[i])) return true;
+        }
+        return false;
+    };
+
+    const deepScan = (root) => {
+        if (!root || !root.querySelectorAll) return;
+
+        const nodes = root.querySelectorAll("iframe,script,img");
+
+        for (let i = 0; i < nodes.length; i++) {
+            const n = nodes[i];
+
+            const src = n.src || n.getAttribute?.("src");
+            if (isBlocked(src)) {
+                n.remove();
             }
-            io.unobserve(el);
         }
-    }, {
-        rootMargin: "250px",
-        threshold: 0.01
-    });
+    };
 
-    function attach(node) {
-        if (!node || node.nodeType !== 1) return;
-
-        if (safeTags.includes(node.tagName)) {
-            io.observe(node);
-        }
-
-        node.querySelectorAll?.(safeTags.join(",")).forEach(io.observe.bind(io));
-    }
-
-    // ---------------- Mutation system ----------------
-    let lastRun = 0;
-    const cooldown = 200;
+    /* ---------------- MUTATION OBSERVER (LIGHT CORE) ---------------- */
+    let mutationBudget = 0;
+    const BUDGET_LIMIT = 40;
 
     const observer = new MutationObserver((muts) => {
-        const now = performance.now();
-        if (now - lastRun < cooldown) return;
-        lastRun = now;
+        mutationBudget++;
 
-        for (const m of muts) {
-            for (const n of m.addedNodes || []) {
-                if (n.nodeType !== 1) continue;
+        const doDeep = mutationBudget > BUDGET_LIMIT;
+        if (doDeep) mutationBudget = 0;
 
-                const el = n;
+        for (let i = 0; i < muts.length; i++) {
+            const nodes = muts[i].addedNodes;
+            if (!nodes) continue;
 
-                // block obvious junk immediately
-                if (
-                    ["SCRIPT", "IFRAME", "IMG"].includes(el.tagName) &&
-                    isBlocked(el.src || el.getAttribute?.("src"))
-                ) {
-                    el.remove();
-                    continue;
-                }
+            for (let j = 0; j < nodes.length; j++) {
+                const el = nodes[j];
+                if (!el || el.nodeType !== 1) continue;
 
-                // hide ad iframe instead of hard remove (safer)
-                if (el.tagName === "IFRAME" && isBlocked(el.src)) {
-                    el.style.display = "none";
-                    continue;
-                }
+                const tag = el.tagName;
 
-                attach(el);
-
-                el.querySelectorAll?.("script,iframe,img").forEach((c) => {
-                    if (isBlocked(c.src || c.getAttribute?.("src"))) {
-                        c.remove();
+                /* FAST PATH */
+                if (tag === "SCRIPT" || tag === "IMG") {
+                    const src = el.src || el.getAttribute?.("src");
+                    if (isBlocked(src)) {
+                        el.remove();
+                        continue;
                     }
-                });
+                }
+
+                if (tag === "IFRAME") {
+                    const src = el.src;
+
+                    if (isBlocked(src)) {
+                        el.style.display = "none";
+                        continue;
+                    }
+
+                    /* ESCALATION CONDITION */
+                    if (doDeep || isSuspicious(src)) {
+                        deepScan(el);
+                    }
+                }
+
+                /* OCCASIONAL ESCALATION */
+                if (doDeep) {
+                    deepScan(el);
+                }
             }
         }
     });
@@ -138,24 +174,36 @@
         subtree: true
     });
 
-    // ---------------- Initial cleanup ----------------
-    document.querySelectorAll("script,iframe,img").forEach((n) => {
-        if (isBlocked(n.src || n.getAttribute?.("src"))) n.remove();
+    /* ---------------- INITIAL CLEAN ---------------- */
+    const initial = document.querySelectorAll("script,iframe,img");
+    for (let i = 0; i < initial.length; i++) {
+        const n = initial[i];
+        const src = n.src || n.getAttribute?.("src");
+        if (isBlocked(src)) n.remove();
+    }
+
+    /* ---------------- VIDEO OBSERVER (MINIMAL) ---------------- */
+    const io = new IntersectionObserver((entries) => {
+        for (let i = 0; i < entries.length; i++) {
+            const e = entries[i];
+            if (!e.isIntersecting) continue;
+
+            const el = e.target;
+            if (el.tagName === "VIDEO") {
+                try { el.play(); } catch {}
+            }
+
+            io.unobserve(el);
+        }
+    }, {
+        rootMargin: "250px",
+        threshold: 0.01
     });
 
-    document.querySelectorAll(safeTags.join(",")).forEach(attach);
+    const vids = document.getElementsByTagName("video");
+    for (let i = 0; i < vids.length; i++) {
+        io.observe(vids[i]);
+    }
 
-    // ---------------- CSS block layer ----------------
-    const style = document.createElement("style");
-    style.textContent = `
-        ${adSelectors} { display:none !important; }
-        .ul-lite-hidden {
-            visibility:hidden !important;
-            opacity:0 !important;
-            pointer-events:none !important;
-        }
-    `;
-    document.documentElement.appendChild(style);
-
-    console.log("[Ultra-Lite Phantom+Specter v5.0] Stable universal mode active");
+    console.log("[Phantom Specter v5.2 Hybrid] Active");
 })();
