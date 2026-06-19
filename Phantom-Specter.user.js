@@ -1,11 +1,15 @@
 // ==UserScript==
-// @name         Ultra-Lite Phantom+Specter v5.2 (Hybrid Engine)
+// @name         Ultra-Lite Phantom+Specter v5.3 (Adblocker)
 // @namespace    universal.ultralite.safe.perf
-// @version      5.2
-// @description  Hybrid ad/script/iframe blocker: lightweight core + selective deep intelligence
+// @version      5.3
+// @description  Ultra-light hybrid content blocker featuring network interception, selective deep scanning, iframe/script filtering, and minimal-overhead page cleanup with privacy-first design.
+// @author       Michel Stutesman
+// @license      MIT
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
+// @downloadURL https://update.greasyfork.org/scripts/583278/Ultra-Lite%20Phantom%2BSpecter%20v53%20%28Adblocker%29.user.js
+// @updateURL https://update.greasyfork.org/scripts/583278/Ultra-Lite%20Phantom%2BSpecter%20v53%20%28Adblocker%29.meta.js
 // ==/UserScript==
 
 (() => {
