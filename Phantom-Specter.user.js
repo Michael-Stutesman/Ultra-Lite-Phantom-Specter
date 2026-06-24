@@ -2,7 +2,7 @@
 // @name         Phantom+Specter v5.4 (Adblocker)
 // @namespace    ultralean.universal.adblocker
 // @version      5.4
-// @description  Ultra-lean hybrid content blocker featuring network interception, selective deep scanning, iframe/script filtering, and minimal-overhead page cleanup with privacy-first design.
+// @description  Ultra-lean content blocker featuring network interception, selective deep scanning, iframe/script filtering, and minimal-overhead page cleanup with privacy-first design.
 // @author       Michael Stutesman
 // @license      MIT
 // @match        *://*/*
